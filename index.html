@@ -1,4 +1,4 @@
-<index.html>
+<!--index.html -->
 <div id="app-root"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -120,6 +120,21 @@ const PALETTE = ["#ec5f8e", "#5b9bd9", "#59b48a", "#9b7fd4", "#e0a13c", "#4fb3bf
 const STORAGE_KEY = "monthly-savings-data";
 const money = n => "\u20B1" + Number(n||0).toLocaleString();
 
+// Works as a synced Claude.ai artifact (window.storage) OR as a plain
+// downloaded/self-hosted HTML file (falls back to this browser's localStorage).
+const hasCloudStorage = (typeof window !== "undefined" && !!window.storage);
+const localStore = {
+  async get(key) {
+    const raw = localStorage.getItem(key);
+    return raw ? { key, value: raw } : null;
+  },
+  async set(key, value) {
+    localStorage.setItem(key, value);
+    return { key, value };
+  }
+};
+const store = hasCloudStorage ? window.storage : localStore;
+
 function defaultData() {
   return {
     people: ["Reyma", "Dave"],
@@ -166,7 +181,7 @@ function App() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await window.storage.get(STORAGE_KEY, true);
+        const res = await store.get(STORAGE_KEY, true);
         setData(res && res.value ? JSON.parse(res.value) : defaultData());
       } catch (e) {
         setData(defaultData());
@@ -179,7 +194,7 @@ function App() {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       try {
-        await window.storage.set(STORAGE_KEY, JSON.stringify(next), true);
+        await store.set(STORAGE_KEY, JSON.stringify(next), true);
       } catch (e) {
         notify("Couldn't save", "Your change may not have synced. Try again.");
       }
@@ -462,7 +477,10 @@ function App() {
       </div>
 
       <div className="footnote">
-        Data is shared and synced for everyone who opens this — publish this artifact to get a link that works on any phone, tablet, or computer.<br/>
+        {hasCloudStorage
+          ? "Data is shared and synced for everyone who opens this — publish this artifact to get a link that works on any phone, tablet, or computer."
+          : "Data is saved in this browser only (not synced across devices). Clearing your browser data will erase it."}
+        <br/>
         Device notifications need your browser's permission; if it's blocked, you'll still see in-app alerts here.
       </div>
     </div>
